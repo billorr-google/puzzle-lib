@@ -1,9 +1,76 @@
 /* global describe, it */
 
 const assert = require('assert');
-const { CharacterConversion } = require('../');
+const {
+  CharacterConversion,
+  CharacterEncoding,
+  CharacterAutoConvert,
+  SignificantFigures
+} = require('../');
 
 describe('Conversions', function () {
+  describe('AutoConvert', function () {
+    it('determineCharacterEncoding', function () {
+      const latin = CharacterAutoConvert.determineCharacterEncoding('L');
+      assert.strictEqual(latin, CharacterEncoding.Latin);
+
+      const ordinal = CharacterAutoConvert.determineCharacterEncoding('12');
+      assert.strictEqual(ordinal, CharacterEncoding.Ordinal);
+
+      const fiveBit = CharacterAutoConvert.determineCharacterEncoding('01100');
+      assert.strictEqual(fiveBit, CharacterEncoding.FiveBitBinary);
+
+      const eightBit = CharacterAutoConvert.determineCharacterEncoding('01101100');
+      assert.strictEqual(eightBit, CharacterEncoding.EightBitBinary);
+
+      const ascii = CharacterAutoConvert.determineCharacterEncoding('76');
+      assert.strictEqual(ascii, CharacterEncoding.Ascii);
+
+      const none = CharacterAutoConvert.determineCharacterEncoding('999');
+      assert.strictEqual(none, CharacterEncoding.None);
+    });
+
+    it('convertCharacter', function () {
+      const latin = CharacterAutoConvert.convertCharacter('A');
+      assert.strictEqual(latin, 'A');
+
+      const ordinalA = CharacterAutoConvert.convertCharacter('1');
+      assert.strictEqual(ordinalA, 'A');
+
+      const ordinalZ = CharacterAutoConvert.convertCharacter('26');
+      assert.strictEqual(ordinalZ, 'Z');
+
+      const fiveBitA = CharacterAutoConvert.convertCharacter('00001');
+      assert.strictEqual(fiveBitA, 'A');
+
+      const fiveBitZ = CharacterAutoConvert.convertCharacter('11010');
+      assert.strictEqual(fiveBitZ, 'Z');
+
+      const eightBitA = CharacterAutoConvert.convertCharacter('01100001');
+      assert.strictEqual(eightBitA, 'a');
+
+      const eightBitZ = CharacterAutoConvert.convertCharacter('01011010');
+      assert.strictEqual(eightBitZ, 'Z');
+
+      const unknown = CharacterAutoConvert.convertCharacter('999');
+      assert.strictEqual(unknown, '');
+
+      const asciiMiddle = CharacterAutoConvert.convertCharacter('136');
+      assert.strictEqual(asciiMiddle, '');
+    });
+
+    it('forceCharacterEncoding', function () {
+      const fiveBitA = CharacterAutoConvert.convertCharacter('1', CharacterEncoding.FiveBitBinary);
+      assert.strictEqual(fiveBitA, 'A');
+
+      const fiveBitD = CharacterAutoConvert.convertCharacter('100', CharacterEncoding.FiveBitBinary);
+      assert.strictEqual(fiveBitD, 'D');
+
+      const eightBitD = CharacterAutoConvert.convertCharacter('1000100', CharacterEncoding.EightBitBinary);
+      assert.strictEqual(eightBitD, 'D');
+    });
+  });
+
   describe('CharacterConversion', function () {
     it('getAsciiTable - Basic tests', function () {
       const table = CharacterConversion.getAsciiTable();
@@ -121,6 +188,115 @@ describe('Conversions', function () {
       assert.throws(() => CharacterConversion.toOrdinal('ab'), /A single character is required/);
       assert.throws(() => CharacterConversion.toOrdinal(0), /A single character is required/);
       assert.throws(() => CharacterConversion.toOrdinal(false), /A single character is required/);
+    });
+  });
+
+  describe('SignificantFigures', function () {
+    it('ceil - Positive numbers', function () {
+      // Zero
+      assert.strictEqual(SignificantFigures.ceil(0, 10), 0);
+
+      // Integers
+      assert.strictEqual(SignificantFigures.ceil(90000, 2), 90000);
+      assert.strictEqual(SignificantFigures.ceil(98000, 2), 98000);
+      assert.strictEqual(SignificantFigures.ceil(98001, 2), 99000);
+      assert.strictEqual(SignificantFigures.ceil(98101, 3), 98200);
+      assert.strictEqual(SignificantFigures.ceil(98001, 6), 98001);
+
+      // Floating point
+      assert.strictEqual(SignificantFigures.ceil(1.1, 2), 1.1);
+      assert.strictEqual(SignificantFigures.ceil(1.11, 2), 1.2);
+      assert.strictEqual(SignificantFigures.ceil(0.1, 1), 0.1);
+      assert.strictEqual(SignificantFigures.ceil(0.11, 1), 0.2);
+    });
+
+    it('ceil - Negative numbers', function () {
+      // Integers
+      assert.strictEqual(SignificantFigures.ceil(-90000, 2), -90000);
+      assert.strictEqual(SignificantFigures.ceil(-98000, 2), -98000);
+      assert.strictEqual(SignificantFigures.ceil(-98999, 2), -98000);
+      assert.strictEqual(SignificantFigures.ceil(-98199, 3), -98100);
+      assert.strictEqual(SignificantFigures.ceil(-98001, 6), -98001);
+
+      // Floating point
+      assert.strictEqual(SignificantFigures.ceil(-1.9, 2), -1.9);
+      assert.strictEqual(SignificantFigures.ceil(-1.99, 2), -1.9);
+      assert.strictEqual(SignificantFigures.ceil(-0.9, 1), -0.9);
+      assert.strictEqual(SignificantFigures.ceil(-0.99, 1), -0.9);
+    });
+
+    it('floor - Positive numbers', function () {
+      // Zero
+      assert.strictEqual(SignificantFigures.floor(0, 10), 0);
+
+      // Integers
+      assert.strictEqual(SignificantFigures.floor(90000, 2), 90000);
+      assert.strictEqual(SignificantFigures.floor(98000, 2), 98000);
+      assert.strictEqual(SignificantFigures.floor(98999, 2), 98000);
+      assert.strictEqual(SignificantFigures.floor(98199, 3), 98100);
+      assert.strictEqual(SignificantFigures.floor(98999, 6), 98999);
+
+      // Floating point
+      assert.strictEqual(SignificantFigures.floor(1.9, 2), 1.9);
+      assert.strictEqual(SignificantFigures.floor(1.99, 2), 1.9);
+      assert.strictEqual(SignificantFigures.floor(0.9, 1), 0.9);
+      assert.strictEqual(SignificantFigures.floor(0.99, 1), 0.9);
+    });
+
+    it('floor - Negative numbers', function () {
+      // Integers
+      assert.strictEqual(SignificantFigures.floor(-90000, 2), -90000);
+      assert.strictEqual(SignificantFigures.floor(-98000, 2), -98000);
+      assert.strictEqual(SignificantFigures.floor(-98001, 2), -99000);
+      assert.strictEqual(SignificantFigures.floor(-98101, 3), -98200);
+      assert.strictEqual(SignificantFigures.floor(-98001, 6), -98001);
+
+      // Floating point
+      assert.strictEqual(SignificantFigures.floor(-1.1, 2), -1.1);
+      assert.strictEqual(SignificantFigures.floor(-1.11, 2), -1.2);
+      assert.strictEqual(SignificantFigures.floor(-0.1, 1), -0.1);
+      assert.strictEqual(SignificantFigures.floor(-0.11, 1), -0.2);
+    });
+
+    it('round - Positive numbers', function () {
+      // Zero
+      assert.strictEqual(SignificantFigures.round(0, 10), 0);
+
+      // Integers
+      assert.strictEqual(SignificantFigures.round(90000, 2), 90000);
+      assert.strictEqual(SignificantFigures.round(98000, 2), 98000);
+      assert.strictEqual(SignificantFigures.round(98499, 2), 98000);
+      assert.strictEqual(SignificantFigures.round(98500, 2), 99000);
+      assert.strictEqual(SignificantFigures.round(98149, 3), 98100);
+      assert.strictEqual(SignificantFigures.round(98150, 3), 98200);
+      assert.strictEqual(SignificantFigures.round(98499, 6), 98499);
+
+      // Floating point
+      assert.strictEqual(SignificantFigures.round(1.5, 2), 1.5);
+      assert.strictEqual(SignificantFigures.round(1.54, 2), 1.5);
+      assert.strictEqual(SignificantFigures.round(1.55, 2), 1.6);
+      assert.strictEqual(SignificantFigures.round(0.5, 1), 0.5);
+      assert.strictEqual(SignificantFigures.round(0.549, 1), 0.5);
+      assert.strictEqual(SignificantFigures.round(0.55, 1), 0.6);
+    });
+
+    it('round - Negative numbers', function () {
+      // Integers
+      assert.strictEqual(SignificantFigures.round(-90000, 2), -90000);
+      assert.strictEqual(SignificantFigures.round(-98000, 2), -98000);
+      assert.strictEqual(SignificantFigures.round(-98500, 2), -98000);
+      assert.strictEqual(SignificantFigures.round(-98501, 2), -99000);
+      assert.strictEqual(SignificantFigures.round(-98150, 3), -98100);
+      assert.strictEqual(SignificantFigures.round(-98151, 3), -98200);
+      assert.strictEqual(SignificantFigures.round(-98599, 6), -98599);
+
+      // Floating point
+      assert.strictEqual(SignificantFigures.round(-1.5, 2), -1.5);
+      assert.strictEqual(SignificantFigures.round(-1.55, 2), -1.5);
+      assert.strictEqual(SignificantFigures.round(-1.551, 2), -1.6);
+      assert.strictEqual(SignificantFigures.round(-0.5, 1), -0.5);
+      assert.strictEqual(SignificantFigures.round(-0.55, 1), -0.5);
+      assert.strictEqual(SignificantFigures.round(-0.551, 1), -0.6);
     });
   });
 });
